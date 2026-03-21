@@ -22,7 +22,7 @@ public static class MenuControlMod
 
     private static HttpListener? _listener;
     private static Thread? _serverThread;
-    private static readonly ConcurrentQueue<Action> _mainThreadQueue = new();
+    internal static readonly ConcurrentQueue<Action> _mainThreadQueue = new();
     internal static readonly JsonSerializerOptions JsonOpts = new()
     {
         WriteIndented = true,
@@ -77,6 +77,15 @@ public static class MenuControlMod
             catch (Exception ex) { tcs.SetException(ex); }
         });
         return tcs.Task.GetAwaiter().GetResult();
+    }
+
+    internal static void RunOnMainThreadAsync(Action action)
+    {
+        _mainThreadQueue.Enqueue(() =>
+        {
+            try { action(); }
+            catch (Exception ex) { GD.PrintErr($"[STS2MenuControl] Main thread error: {ex}"); }
+        });
     }
 
     private static void ServerLoop()
@@ -173,7 +182,7 @@ public static class MenuControlMod
 
         try
         {
-            var result = RunOnMainThread(() => MenuActionService.Execute(action, optionIndex));
+            var result = RunOnMainThread(() => MenuActionService.Execute(action, optionIndex, parsed));
             SendJson(res, result);
         }
         catch (MenuActionException ex)

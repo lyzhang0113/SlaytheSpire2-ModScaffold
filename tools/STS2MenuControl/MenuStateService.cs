@@ -29,7 +29,30 @@ internal static class MenuStateService
         };
 
         if (screen == "CHARACTER_SELECT")
+        {
             result["characters"] = GetCharacters(currentScreen);
+            if (currentScreen is NCharacterSelectScreen cs && cs.Lobby != null)
+            {
+                var lobby = cs.Lobby;
+                result["is_multiplayer"] = lobby.NetService.Type.ToString() != "Singleplayer";
+                result["lobby_type"] = lobby.NetService.Type.ToString().ToLowerInvariant();
+                result["max_players"] = lobby.MaxPlayers;
+                result["ascension"] = lobby.Ascension;
+                result["net_type"] = lobby.NetService.Type.ToString();
+                var players = new List<Dictionary<string, object>>();
+                foreach (var p in lobby.Players)
+                {
+                    players.Add(new Dictionary<string, object>
+                    {
+                        ["id"] = p.id,
+                        ["character"] = p.character?.Id?.Entry ?? "none",
+                        ["is_ready"] = p.isReady,
+                        ["is_local"] = p.id == lobby.LocalPlayer.id
+                    });
+                }
+                result["players"] = players;
+            }
+        }
 
         if (screen == "TIMELINE")
             result["epochs"] = GetEpochs(currentScreen);
