@@ -88,7 +88,10 @@ internal static class MenuActionService
                 new() { ["action"] = "embark", ["screen"] = MenuStateService.ResolveScreen(screen) });
 
         var btn = charScreen.GetNodeOrNull("ConfirmButton");
-        if (btn != null) MenuStateService.ClickNode(btn);
+        if (btn != null)
+        {
+            charScreen.Call("OnEmbarkPressed", btn);
+        }
         return Success("embark");
     }
 
