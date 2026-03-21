@@ -1,0 +1,12 @@
+{
+    "id": "Sts2ModScaffold",
+    "name": "Sts2ModScaffold",
+    "pck_name": "Sts2ModScaffold",
+    "version": "0.1.0",
+    "author": "VibeCoding",
+    "description": "A mod created with Sts2ModScaffold template",
+    "has_dll": true,
+    "has_pck": true,
+    "affects_gameplay": true,
+    "dependencies": []
+}

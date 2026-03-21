@@ -1,0 +1,39 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+*.user
+*.suo
+
+# NuGet
+**/packages/
+**/*.nuget.props
+**/*.nuget.targets
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# Temp files
+nul
+*.pck
+
+# References (game DLLs - downloaded separately)
+references/
+
+# Local config
+.env
+opencode.jsonc
+
+# Tool downloads (keep scripts and pck_builder only)
+/tools/*
+!/tools/*.ps1
+!/tools/pck_builder/
+!/tools/pck_builder/**
+
+# Cloned repositories
+/Modding-Tutorial/
