@@ -98,29 +98,89 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     if ([Console]::IsOutputRedirected -eq $false) { pause }
     exit 1
 }
+Write-OK "- Git: $((& git --version 2>$null))"
 
-Write-Step 0 7 "Setting up isolated .NET SDK (10.0) and runtime (10.0)..."
+Write-Host ""
+Write-Host "[Pre-Check] Scanning system environment..." -ForegroundColor Cyan
+$sysDotnetCmd = Get-Command dotnet -ErrorAction SilentlyContinue
+$sysGodotCmd = Get-Command godot -ErrorAction SilentlyContinue
+$sysUvCmd = Get-Command uv -ErrorAction SilentlyContinue
+
+$sysDotnet10Sdk = $false
+$sysDotnet10Runtime = $false
+$sysDotnet8Runtime = $false
+$sysDotnetRoot = ""
+$useSystemDotnet = $false
+
+if ($sysDotnetCmd) {
+    $sysDotnetRoot = if ($env:DOTNET_ROOT) { $env:DOTNET_ROOT } else { Split-Path (Split-Path $sysDotnetCmd.Source) }
+    $sysDotnetVer = & $sysDotnetCmd --version 2>$null
+    Write-Host "  - System .NET: $sysDotnetVer (at $($sysDotnetCmd.Source))"
+    & $sysDotnetCmd --list-sdks 2>$null | ForEach-Object {
+        if ($_ -match "10\.0") { $sysDotnet10Sdk = $true }
+    }
+    & $sysDotnetCmd --list-runtimes 2>$null | ForEach-Object {
+        if ($_ -match "10\.0") { $sysDotnet10Runtime = $true }
+        if ($_ -match "8\.0") { $sysDotnet8Runtime = $true }
+    }
+    if ($sysDotnet10Sdk) { Write-Host "    SDK 10.0: found" } else { Write-Host "    SDK 10.0: missing" }
+    if ($sysDotnet10Runtime) { Write-Host "    Runtime 10.0: found" } else { Write-Host "    Runtime 10.0: missing" }
+    if ($sysDotnet8Runtime) { Write-Host "    Runtime 8.0: found" } else { Write-Host "    Runtime 8.0: missing" }
+} else {
+    Write-Host "  - System .NET: not found"
+}
+
+if ($sysGodotCmd) {
+    $sysGodotVer = & $sysGodotCmd --version 2>$null
+    Write-Host "  - System Godot: $sysGodotVer (at $($sysGodotCmd.Source))"
+} else {
+    Write-Host "  - System Godot: not found"
+}
+
+if ($sysUvCmd) {
+    Write-Host "  - System uv: $(($sysUvCmd.Version.ToString())) (at $($sysUvCmd.Source))"
+} else {
+    Write-Host "  - System uv: not found"
+}
+
+if ($sysDotnet10Sdk -and $sysDotnet8Runtime) {
+    Write-OK "- System .NET has all required versions, will use system dotnet (skip download)"
+    $useSystemDotnet = $true
+    $DotnetDir = $sysDotnetRoot
+} else {
+    Write-Host "  - Will use isolated .NET from tools/dotnet"
+}
+
+Write-Step 0 7 "Setting up .NET SDK (10.0) and runtime (8.0)..."
 
 $env:DOTNET_ROOT = $DotnetDir
 $env:PATH = "$DotnetDir;$env:PATH"
 
 $dotnet10Installed = $false
 $dotnet10RuntimeInstalled = $false
+$dotnet8RuntimeInstalled = $false
 
-if ((Test-Path (Join-Path $DotnetDir "dotnet.exe")) -and (Test-FileSize (Join-Path $DotnetDir "dotnet.exe") 100000)) {
+if ($useSystemDotnet) {
+    Write-OK "- Using system .NET (at $DotnetDir)"
+    $dotnet10Installed = $true
+    $dotnet10RuntimeInstalled = $true
+    $dotnet8RuntimeInstalled = $true
+} elseif ((Test-Path (Join-Path $DotnetDir "dotnet.exe")) -and (Test-FileSize (Join-Path $DotnetDir "dotnet.exe") 100000)) {
     $dotnetTest = & "$DotnetDir\dotnet.exe" --version 2>$null
     if ($dotnetTest -match "10\.0") {
-        Write-Host "  - Checking installed .NET SDK versions..."
+        Write-Host "  - Checking isolated .NET SDK versions..."
         & "$DotnetDir\dotnet.exe" --list-sdks 2>$null | ForEach-Object {
             Write-Host "    $_"
             if ($_ -match "10\.0") { $dotnet10Installed = $true }
         }
-        Write-Host "  - Checking installed .NET runtimes..."
+        Write-Host "  - Checking isolated .NET runtimes..."
         & "$DotnetDir\dotnet.exe" --list-runtimes 2>$null | ForEach-Object {
             if ($_ -match "10\.0" -and $_ -match "Microsoft.WindowsDesktopRuntime") {
                 $dotnet10RuntimeInstalled = $true
             }
+            if ($_ -match "8\.0") { $dotnet8RuntimeInstalled = $true }
         }
+        if ($dotnet10Installed) { Write-OK "- Isolated .NET 10.0 SDK found" }
     } else {
         Write-Host "  - dotnet.exe exists but not working, will reinstall"
     }
@@ -191,6 +251,13 @@ if (-not $dotnet10RuntimeInstalled) {
     Write-OK "- .NET 10.0 runtime already installed"
 }
 
+if (-not (Test-Path (Join-Path $DotnetDir "dotnet.exe"))) {
+    Write-Err "Failed to install .NET SDK to $DotnetDir"
+    if ([Console]::IsOutputRedirected -eq $false) { pause }
+    exit 1
+}
+Write-OK "Done (.NET SDKs and runtime ready at $DotnetDir)"
+
 $env:DOTNET_ROOT = $DotnetDir
 $env:PATH = "$DotnetDir;$env:PATH"
 
@@ -224,18 +291,17 @@ if (-not $dotnet8RuntimeInstalled) {
     Write-OK "- .NET 8.0 runtime already installed"
 }
 
-if (-not (Test-Path (Join-Path $DotnetDir "dotnet.exe"))) {
-    Write-Err "Failed to install .NET SDK to $DotnetDir"
-    if ([Console]::IsOutputRedirected -eq $false) { pause }
-    exit 1
-}
-Write-OK "Done (.NET SDKs and runtime installed to $DotnetDir)"
+Write-OK "Done (.NET all runtimes ready)"
 
 # Setup uv (Python package manager for MCP servers)
 Write-Host ""
 Write-Host "[0.5/7] Setting up uv (Python package manager)..."
 $uvInstalled = $false
-if (Test-Path $UvExe) {
+if ($sysUvCmd) {
+    $UvExe = $sysUvCmd.Source
+    Write-OK "- Using system uv at $UvExe"
+    $uvInstalled = $true
+} elseif (Test-Path $UvExe) {
     Write-OK "- uv already installed at $UvDir"
     $uvInstalled = $true
 } else {
@@ -267,9 +333,8 @@ if (-not $uvInstalled) {
         $UvExe = $systemUv.Source
         Write-OK "- Using system uv at $UvExe"
     } else {
-        Write-Err "uv is not available. Please install from: https://github.com/astral-sh/uv"
-        if ([Console]::IsOutputRedirected -eq $false) { pause }
-        exit 1
+        Write-Warn "uv is not available. Some MCP features may not work."
+        Write-Host "  Install from: https://github.com/astral-sh/uv"
     }
 }
 
@@ -341,7 +406,17 @@ Write-OK "Done"
 Write-Step 3 7 "Setting up Godot 4.5.1..."
 $godotExePath = Join-Path $GodotDir "Godot_v4.5.1-stable_mono_win64.exe"
 $downloadGodot = $false
-if (Test-Path $godotExePath) {
+if ($sysGodotCmd) {
+    $sysGodotVer = & $sysGodotCmd --version 2>$null
+    if ($sysGodotVer -match "4\.5") {
+        Write-OK "- Using system Godot $sysGodotVer (at $($sysGodotCmd.Source))"
+        $GodotExe = $sysGodotCmd.Source
+        $downloadGodot = $false
+    } else {
+        Write-Warn "System Godot version is $sysGodotVer, need 4.5.1 - will download"
+        $downloadGodot = $true
+    }
+} elseif (Test-Path $godotExePath) {
     Write-Host "  - Godot already installed, verifying..."
     if (Test-FileSize $godotExePath 10000000) {
         Write-OK "- Godot verified"
@@ -499,28 +574,34 @@ if (Test-Path $sts2McpDll) {
 }
 
 Write-Host "  - Setting up STS2MCP Python MCP Server..."
-if (Test-Path $Sts2McpPythonDir) {
+if ((Test-Path $Sts2McpPythonDir) -and (Test-Path $UvExe)) {
     Push-Location $Sts2McpPythonDir
     & $UvExe sync --quiet 2>$null
     Pop-Location
+} elseif (-not (Test-Path $UvExe)) {
+    Write-Warn "uv not available, skipping Python MCP setup"
 }
 
 Write-Host "  - Testing STS2MCP Python MCP Server..."
-Push-Location $Sts2McpPythonDir
-$sts2Test = & $UvExe run python --version 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Warn "STS2MCP Python MCP Server uv sync needed, running..."
-    & $UvExe sync
+if (Test-Path $UvExe) {
+    Push-Location $Sts2McpPythonDir
     $sts2Test = & $UvExe run python --version 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Err "STS2MCP Python MCP Server not working"
+        Write-Warn "STS2MCP Python MCP Server uv sync needed, running..."
+        & $UvExe sync
+        $sts2Test = & $UvExe run python --version 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "STS2MCP Python MCP Server not working"
+        } else {
+            Write-OK "- STS2MCP Python MCP Server verified (synced)"
+        }
     } else {
-        Write-OK "- STS2MCP Python MCP Server verified (synced)"
+        Write-OK "- STS2MCP Python MCP Server verified"
     }
+    Pop-Location
 } else {
-    Write-OK "- STS2MCP Python MCP Server verified"
+    Write-Warn "uv not available, skipping Python MCP test"
 }
-Pop-Location
 Write-OK "Done"
 
 Write-Step 5.5 7 "Setting up STS2MenuControl..."
@@ -579,8 +660,8 @@ set "PATH=%%DOTNET_ROOT%%\host;%%DOTNET_ROOT%%\shared;%%PATH%%"
 start "" "%%THIS_DIR%%ILSpy.exe"
 "@ | Set-Content -Path $launchBat -Encoding ASCII
 
-$uvExe = (Get-Command uv -ErrorAction SilentlyContinue).Source
-if (-not $uvExe) { $uvExe = "uv" }
+$uvExeForConfig = $UvExe
+if (-not $uvExeForConfig) { $uvExeForConfig = "uv" }
 
 $jsoncPath = Join-Path $ProjectDir "opencode.jsonc"
 $c = @"
@@ -610,7 +691,7 @@ if ($ilspyMcpDll) {
     Write-Warn "ILSpy MCP DLL not found, opencode.jsonc will have invalid ilspy config"
 }
 $c = $c -replace '\{\{DOTNET_ROOT\}\}', ($DotnetDir | ConvertTo-Json).Trim('"')
-$c = $c -replace '\{\{UV_EXE\}\}', ($UvExe | ConvertTo-Json).Trim('"')
+$c = $c -replace '\{\{UV_EXE\}\}', ($uvExeForConfig | ConvertTo-Json).Trim('"')
 $c = $c -replace '\{\{STS2_MCP_PYTHON_DIR\}\}', ($Sts2McpPythonDir | ConvertTo-Json).Trim('"')
 [System.IO.File]::WriteAllText($jsoncPath, $c, (New-Object System.Text.UTF8Encoding $false))
 Write-OK "Done"
