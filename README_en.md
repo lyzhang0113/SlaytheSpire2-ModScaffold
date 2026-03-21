@@ -4,28 +4,25 @@ A zero-config scaffold for Slay the Spire 2 mod development with AI-assisted vib
 
 ## Acknowledgments
 
-This project uses the following open-source projects:
-
-- **[STS2MCP](https://github.com/Gennadiyev/STS2MCP)** - MCP server for programmatic game control (play cards, read state, navigate menus)
-- **[ILSpy-Mcp](https://github.com/maces/ILSpy-Mcp)** - MCP server for .NET assembly decompilation and code exploration
-- **[Modding-Tutorial](https://github.com/fresh-milkshake/Modding-Tutorial)** - Reference documentation and examples for Slay the Spire 2 mod development
-- **[STS2-Agent](https://github.com/CharTyr/STS2-Agent)** - Reference for main menu API (character select, timeline, embark)
+- **[STS2MCP](https://github.com/Gennadiyev/STS2MCP)** - Game control MCP (play cards, read state, navigate menus)
+- **[ILSpy-Mcp](https://github.com/maces/ILSpy-Mcp)** - .NET assembly decompilation MCP
+- **[Modding-Tutorial](https://github.com/fresh-milkshake/Modding-Tutorial)** - Reference documentation and examples
 
 ## Quick Start
 
 ```powershell
-# Double-click or run in PowerShell:
 .\install.bat
 ```
 
-That's it. This single command:
+This single command:
 
 1. Installs .NET 10 SDK + .NET 8 runtime (isolated to `tools/dotnet/`)
-2. Downloads Godot 4.5.1 Mono, ILSpy
+2. Downloads Godot 4.5.1 Mono, ILSPy
 3. Builds ILSpy MCP Server and STS2MCP
 4. Configures MCP servers in `opencode.jsonc`
-5. Builds your mod and installs it to the game
-6. **Launches the game and verifies mod loading** (Deep Verification)
+5. Builds and installs STS2MenuControl Mod
+6. Builds and installs the scaffold Mod
+7. **Launches the game and verifies mod loading** (Deep Verification)
 
 **Note**: Steam must be running and logged in for Deep Verification.
 
@@ -33,26 +30,31 @@ That's it. This single command:
 
 ```
 SlaytheSpire2ModVibeCoding/
-├── src/
-│   ├── ModEntry.cs              # Mod entry point - DO NOT modify logic
-│   ├── Hooks/                   # YOUR CODE GOES HERE (split by feature)
+├── src/                            # Scaffold Mod (your code goes here)
+│   ├── ModEntry.cs                  # Mod entry point - DO NOT modify logic
+│   ├── Hooks/                       # YOUR CODE GOES HERE (split by feature)
 │   │   └── .gitkeep
-│   ├── Sts2ModScaffold.csproj   # .NET 10 project - DO NOT modify
+│   ├── Sts2ModScaffold.csproj       # .NET 10 project - DO NOT modify
 │   └── com.vibecoding.sts2mod.json  # Mod manifest
 ├── tools/
-│   ├── dotnet/                  # Isolated .NET SDK/runtime
-│   ├── godot/                   # Godot 4.5.1 Mono
-│   ├── ilspy/                   # ILSpy decompiler
-│   ├── ILSpy-Mcp/               # ILSpy MCP Server
-│   ├── STS2MCP/                 # Game control MCP
-│   ├── uv/                      # Python package manager
-│   └── pck_builder/             # PCK builder script
-├── references/                  # Game DLLs (sts2.dll, 0Harmony.dll, GodotSharp.dll)
-├── docs/plans/                  # Implementation plans
-├── rules.md                     # Development rules (MUST READ)
-├── AGENTS.md                    # AI Agent workflow guide
-├── install.bat                  # One-click setup
-└── install-mod.bat              # Rebuild & install mod
+│   ├── STS2MenuControl/             # Main menu control Mod (auto-installed)
+│   │   ├── MenuControlMod.cs        # HTTP server (port 8081)
+│   │   ├── MenuActionService.cs     # Menu actions (singleplayer/multiplayer)
+│   │   ├── MenuStateService.cs      # State reader
+│   │   └── STS2MenuControl.csproj
+│   ├── STS2Mcp/                     # STS2MCP game control Mod (auto-installed)
+│   ├── pck_builder/                 # PCK builder script
+│   ├── dotnet/                      # Isolated .NET SDK/runtime
+│   ├── godot/                       # Godot 4.5.1 Mono
+│   ├── ilspy/                       # ILSpy decompiler
+│   └── launch_sts2.ps1 etc.         # Helper scripts
+├── references/                      # Game DLLs (gitignored)
+├── docs/plans/                      # Implementation plans
+├── rules.md / rules_en.md           # Development rules (MUST READ)
+├── AGENTS.md                        # AI Agent workflow guide
+├── install.bat                      # One-click setup
+├── install-mod.bat                  # Rebuild & install
+└── uninstall-mod.bat                # Uninstall all Mods
 ```
 
 ## Daily Workflow
@@ -72,60 +74,93 @@ SlaytheSpire2ModVibeCoding/
 
 ## MCP Servers
 
-Two MCP servers are pre-configured in `opencode.jsonc`:
+| Server | Port | Purpose |
+|--------|------|---------|
+| **ILSpy MCP** | - | Decompile `sts2.dll` to explore game internals and verify hook signatures |
+| **STS2MCP** | 15526 | In-game control (play cards, end turn, map navigation, events, etc.) |
+| **STS2MenuControl** | 8081 | Main menu control (new game, character select, multiplayer, timeline, etc.) |
 
-| Server | Purpose |
-|--------|---------|
-| **ILSpy MCP** | Decompile `sts2.dll` to explore game internals and verify hook signatures |
-| **STS2MCP** | Control the game programmatically (play cards, read state, navigate menus) |
-| **STS2MenuControl** | Main menu control (start new game, select character, timeline, abandon run) |
+### STS2MenuControl API
 
-### ILSpy MCP - Code Decompilation
-
-**Never guess method signatures - always verify with ILSpy MCP.**
-
-```python
-# View class structure
-decompile_type(assembly_path="references/sts2.dll", type_name="MegaCrit.Sts2.Core.Hooks.Hook")
-
-# View method signature
-decompile_method(assembly_path="references/sts2.dll", type_name="...", method_name="...")
-```
-
-### STS2MCP - Game Control
-
-For automated testing (requires game running):
-
-```python
-get_game_state()              # Get current game state
-combat_play_card(0)           # Play card at index 0
-combat_end_turn()             # End turn
-rewards_claim(0)              # Claim reward
-map_choose_node(0)            # Choose map node
-```
-
-### STS2MenuControl - Main Menu Control
-
-HTTP API on `localhost:8081` for controlling the main menu (complements STS2MCP):
+HTTP API on `localhost:8081` for controlling the main menu:
 
 ```
 GET  /api/v1/menu                    # Get current menu state
 POST /api/v1/menu                    # Execute menu action
+GET  /health                         # Health check
 ```
 
-| Action | Description |
-|--------|-------------|
-| `open_character_select` | Open character selection screen |
-| `select_character` (option_index) | Select a character |
-| `embark` | Start a new game |
-| `continue_run` | Continue existing save |
-| `abandon_run` | Abandon current save |
-| `open_timeline` | Open timeline screen |
-| `choose_timeline_epoch` (option_index) | Select a timeline epoch |
-| `confirm_timeline_overlay` | Confirm timeline dialog |
-| `close_main_menu_submenu` | Close current submenu |
-| `return_to_main_menu` | Return to main menu (from game over) |
-| `confirm_modal` / `dismiss_modal` | Interact with modal dialogs |
+#### Singleplayer Actions
+
+| Action | Params | Description |
+|--------|--------|-------------|
+| `open_character_select` | - | Open character selection (singleplayer) |
+| `select_character` | `option_index` | Select a character |
+| `embark` | - | Start a new game |
+| `continue_run` | - | Continue existing save |
+| `abandon_run` | - | Abandon current save (shows confirm dialog) |
+| `open_timeline` | - | Open timeline screen |
+| `choose_timeline_epoch` | `option_index` | Select a timeline epoch |
+| `close_main_menu_submenu` | - | Close current submenu |
+| `return_to_main_menu` | - | Return to main menu (from game over) |
+
+#### Multiplayer Actions
+
+| Action | Params | Description |
+|--------|--------|-------------|
+| `open_multiplayer_host` | `mode`, `max_players`, `port` | Create multiplayer room (LAN/Steam) |
+| `set_ready` | - | Mark as ready |
+| `set_unready` | - | Mark as not ready |
+| `get_lobby_status` | - | Query room status and player list |
+
+#### General Actions
+
+| Action | Params | Description |
+|--------|--------|-------------|
+| `confirm_modal` | - | Confirm a modal dialog |
+| `dismiss_modal` | - | Dismiss a modal dialog |
+
+#### State Response
+
+`GET /api/v1/menu` returns multiplayer info on character select:
+
+```json
+{
+  "is_multiplayer": true,
+  "lobby_type": "host",
+  "max_players": 4,
+  "net_type": "Host",
+  "players": [
+    {"id": 1, "character": "IRONCLAD", "is_ready": false, "is_local": true}
+  ]
+}
+```
+
+### STS2MCP API
+
+HTTP API on `localhost:15526` for in-game control:
+
+```
+GET  /api/v1/singleplayer         # Get game state
+POST /api/v1/singleplayer         # Execute game action
+```
+
+Common actions: `combat_play_card`, `combat_end_turn`, `choose_map_node`, `choose_event_option`, `proceed`, `select_card`, `confirm_selection`, `skip_card_reward`.
+
+## Full Test Flow (Automated)
+
+The complete automated flow from main menu to first combat victory:
+
+```
+1. STS2MenuControl: open_character_select
+2. STS2MenuControl: select_character(option_index=0)
+3. STS2MenuControl: embark
+4. STS2MCP:        choose_event_option(index=0)     # Neow
+5. STS2MCP:        proceed / select_card + confirm   # Handle card selection
+6. STS2MCP:        choose_map_node(index=0)         # Choose map node
+7. STS2MCP:        combat_play_card + combat_end_turn  # Combat loop
+8. STS2MCP:        proceed                         # Claim rewards
+```
 
 ## Vibe Coding with AI
 
@@ -135,79 +170,48 @@ This scaffold is designed for AI-assisted development (OpenCode, Claude, etc.):
 2. AI uses ILSpy MCP to find correct hooks and verify signatures
 3. AI writes code in `src/Hooks/`
 4. AI builds and installs via `install-mod.bat`
-5. AI tests using STS2MCP
+5. AI tests using STS2MenuControl + STS2MCP (fully automated)
 6. You verify in-game
 
 **Important**: AI agents must read `rules.md` and `AGENTS.md` before development.
 
 ## Hooks Reference
 
-All hooks are defined on `MegaCrit.Sts2.Core.Hooks.Hook`. See the full hook list in existing README sections.
+All hooks are defined on `MegaCrit.Sts2.Core.Hooks.Hook`.
 
 ### Hook Types
 
-1. **Event Hooks** (return `Task`, use Postfix)
-   - `AfterCardPlayed`, `BeforeCombatStart`, `AfterDamageReceived`, etc.
-
-2. **Value Modify Hooks** (return value, use `ref __result`)
-   - `ModifyDamage`, `ModifyBlock`, `ModifyEnergyCostInCombat`, etc.
-
-3. **Boolean Gate Hooks** (return `bool`, allow/deny)
-   - `ShouldDie`, `ShouldPlay`, `ShouldDraw`, etc.
+1. **Event Hooks** (return `Task`, use Postfix) - `AfterCardPlayed`, `BeforeCombatStart`, etc.
+2. **Value Modify Hooks** (return value, use `ref __result`) - `ModifyDamage`, `ModifyBlock`, etc.
+3. **Boolean Gate Hooks** (return `bool`, allow/deny) - `ShouldDie`, `ShouldPlay`, etc.
 
 ### Example Hook
 
 ```csharp
-// src/Hooks/CombatHooks.cs
 [HarmonyPatch(typeof(MegaCrit.Sts2.Core.Hooks.Hook), nameof(MegaCrit.Sts2.Core.Hooks.Hook.ModifyDamage))]
 public static class ModifyDamagePatch
 {
     public static void Postfix(ref decimal __result)
     {
-        __result *= 2; // Double all damage
+        __result *= 2;
     }
 }
 ```
 
-## Mod File Structure
-
-The game expects this layout in `mods/`:
-
-```
-mods/YourModName/
-├── YourModName.dll        # Compiled assembly
-├── YourModName.pck        # Godot resources
-├── YourModName.json       # Mod manifest (id, has_pck, has_dll)
-└── mod_manifest.json      # Godot manifest (pck_name)
-```
-
-**Critical**: `id` in `YourModName.json` must match folder name, DLL name, and PCK name.
+See `rules.md` for the complete hook list.
 
 ## Scripts Reference
 
 | Script | Purpose |
 |--------|---------|
 | `install.bat` | Full environment setup (first run only) |
-| `install-mod.bat` | Rebuild & install mod (daily use) |
-| `uninstall-mod.bat` | Remove mod and STS2MCP from game |
+| `install-mod.bat` | Rebuild & install all mods (daily use) |
+| `uninstall-mod.bat` | Remove all mods from game |
 | `tools/launch_sts2.ps1` | Launch game via Steam |
 | `tools/close_sts2.ps1` | Force-close game |
 | `tools/wait_sts2.ps1` | Wait for game process |
 | `tools/read_sts2_logs.ps1` | View game logs |
 | `tools/rename-scaffold.ps1` | Rename scaffold to your mod name |
-
-## Rename Scaffold
-
-When starting a new mod, rename everything:
-
-```powershell
-.\tools\rename-scaffold.ps1 -NewModName "MyAwesomeMod"
-```
-
-This updates:
-- `.csproj` filename and namespace
-- `.json` manifest id and pck_name
-- `ModEntry.cs` ModId and ModName
 
 ## Requirements
 
@@ -216,19 +220,7 @@ This updates:
 - **Slay the Spire 2** via Steam
 - **Steam** logged in (for game launch and Deep Verification)
 
-Everything else (.NET, Godot, uv, ILSpy) is installed automatically.
-
-> **Note**: This scaffold has only been tested on Windows. Other platforms (macOS, Linux) have not been tested.
-
-## Logging
-
-```csharp
-Logger.Log("[Hook] Your message here");
-```
-
-Logs written to: `%APPDATA%\SlayTheSpire2\logs\mod_log.txt`
-
-View logs: `.\tools\read_sts2_logs.ps1`
+Everything else (.NET, Godot, ILSpy) is installed automatically.
 
 ## Troubleshooting
 
@@ -237,7 +229,6 @@ View logs: `.\tools\read_sts2_logs.ps1`
 1. Check `godot.log` for `ERROR` and `WARNING`
 2. Verify `id` in manifest matches folder/DLL/PCK names
 3. Confirm `has_dll: true` and `has_pck: true` are set
-4. First-time mods may show "mods warning" - confirm in-game
 
 ### Hooks Not Working
 
@@ -249,11 +240,10 @@ View logs: `.\tools\read_sts2_logs.ps1`
 
 1. Run `install.bat` first
 2. Verify `references/` contains `sts2.dll`, `0Harmony.dll`, `GodotSharp.dll`
-3. Check `GameDir` in `.csproj` points to correct game directory
 
 ## Documentation
 
-- **`rules.md`** - Development rules and constraints (MUST READ)
+- **`rules.md`** / **`rules_en.md`** - Development rules and constraints (MUST READ)
 - **`AGENTS.md`** - AI Agent workflow guide
 - **`docs/plans/`** - Implementation plans directory
 

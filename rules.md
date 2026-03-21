@@ -1,4 +1,4 @@
-# Slay the Spire 2 Mod 开发规范
+# 杀戮尖塔 2 Mod 开发规范
 
 ## 项目结构
 

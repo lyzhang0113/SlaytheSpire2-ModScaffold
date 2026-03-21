@@ -8,9 +8,9 @@
 
 这是一个 **Slay the Spire 2 Mod 脚手架**，使用 C# + Harmony 进行 Mod 开发。
 
-- **开发规范**: `rules.md` — 必读，约束所有开发行为
+- **开发规范**: `rules.md` / `rules_en.md` — 必读，约束所有开发行为
 - **入口文件**: `src/ModEntry.cs` — 禁止修改
-- **Hook 文件**: `src/Hooks/` 目录 — 按 功能模块拆分文件
+- **Hook 文件**: `src/Hooks/` 目录 — 按功能模块拆分文件
 - **清单文件**: `src/com.vibecoding.sts2mod.json` — Mod 元数据（id、名称、版本等）
 - **项目文件**: `src/Sts2ModScaffold.csproj` — .NET 10 类库
 
@@ -45,22 +45,6 @@
 
 文件命名：`docs/plans/[功能名].md`
 
-```markdown
-# [功能名] 实现计划
-
-## 目标
-用户想要...
-
-## 需要的 Hooks
-1. Hook 名称 — 用途说明
-
-## 实现步骤
-1. 步骤描述
-
-## 验证方式
-- 如何测试这个功能
-```
-
 ### 3. 编写代码
 
 1. 编辑 `src/Hooks/` 下的 Hook 文件
@@ -82,7 +66,7 @@ install-mod.bat
 
 ### 6. 启动游戏并自动测试
 
-**Agent 必须自行完成全部测试流程，使用脚本和 STS2MCP 操作游戏。**
+**Agent 必须自行完成全部测试流程，使用脚本和 STS2MenuControl + STS2MCP 操作游戏。**
 
 **前置条件：Steam 必须已启动并登录，否则游戏无法启动。启动前先检查 Steam 状态。**
 
@@ -112,25 +96,52 @@ powershell -ExecutionPolicy Bypass -File "tools\launch_sts2.ps1"
 powershell -ExecutionPolicy Bypass -File "tools\wait_sts2.ps1"
 ```
 
-#### 6.5 使用 STS2MCP 操作游戏
+#### 6.5 使用 STS2MenuControl 控制主菜单
 
-等待 MCP Server 连接后，使用 STS2MCP 工具（HTTP API on localhost:15526）：
+HTTP API on `localhost:8081`：
 
-1. **获取游戏状态**：调用 `get_game_state()` 确认游戏已加载
-2. **进入战斗并出牌**：调用 `combat_play_card(card_index, target?)` 打出一张牌触发 Hook
-3. 根据测试需要重复操作（出多张牌、结束战斗等）
+```bash
+# 打开角色选择（单人）
+curl -s -X POST http://localhost:8081/api/v1/menu -H "Content-Type: application/json" -d "{\"action\":\"open_character_select\"}"
 
-#### 6.6 关闭游戏
+# 选择角色
+curl -s -X POST http://localhost:8081/api/v1/menu -H "Content-Type: application/json" -d "{\"action\":\"select_character\",\"option_index\":0}"
+
+# 开始游戏
+curl -s -X POST http://localhost:8081/api/v1/menu -H "Content-Type: application/json" -d "{\"action\":\"embark\"}"
+
+# 创建多人房间（LAN）
+curl -s -X POST http://localhost:8081/api/v1/menu -H "Content-Type: application/json" -d "{\"action\":\"open_multiplayer_host\",\"mode\":\"lan\",\"max_players\":4}"
+
+# 标记准备就绪
+curl -s -X POST http://localhost:8081/api/v1/menu -H "Content-Type: application/json" -d "{\"action\":\"set_ready\"}"
+```
+
+#### 6.6 使用 STS2MCP 操作游戏内
+
+HTTP API on `localhost:15526`：
+
+```bash
+# 获取游戏状态
+curl -s http://localhost:15526/api/v1/singleplayer
+
+# 出牌
+curl -s -X POST http://localhost:15526/api/v1/singleplayer -H "Content-Type: application/json" -d "{\"action\":\"combat_play_card\",\"card_index\":0,\"target\":\"ENEMY_ID\"}"
+
+# 结束回合
+curl -s -X POST http://localhost:15526/api/v1/singleplayer -H "Content-Type: application/json" -d "{\"action\":\"combat_end_turn\"}"
+
+# 选择地图节点
+curl -s -X POST http://localhost:15526/api/v1/singleplayer -H "Content-Type: application/json" -d "{\"action\":\"choose_map_node\",\"index\":0}"
+```
+
+#### 6.7 关闭游戏
 
 ```bash
 powershell -ExecutionPolicy Bypass -File "tools\close_sts2.ps1"
 ```
 
-等待进程完全退出：
-
-```bash
-powershell -Command "for ($i=1; $i -le 10; $i++) { Start-Sleep -Seconds 1; if (-not (Get-Process -Name 'SlayTheSpire2' -ErrorAction SilentlyContinue)) { Write-Host 'Game closed'; break } }"
-```
+等待进程完全退出（最多 10 秒）。
 
 ### 7. 检查日志确认 Mod 加载成功
 
@@ -155,21 +166,43 @@ powershell -ExecutionPolicy Bypass -File "tools\read_sts2_logs.ps1"
 - `get_type_members(assembly_path, type_name)` — 快速查看成员列表
 - `list_assembly_types(assembly_path)` — 列出程序集中的所有类型
 
-### STS2MCP — 游戏控制
+### STS2MenuControl — 主菜单控制（端口 8081）
 
-用于自动化测试（需要游戏运行中）。**Agent 必须使用此 MCP 操作游戏进行测试，不要让用户手动操作。**
+用于在主菜单中操作（角色选择、开始游戏、多人模式等）。**Agent 必须使用此 API 进行主菜单操作。**
 
-- `get_game_state(format?)` — 获取当前游戏状态
-- `combat_play_card(card_index, target?)` — 出牌
-- `combat_end_turn()` — 结束回合
-- `rewards_claim(reward_index)` — 领取奖励
-- `rewards_pick_card(card_index)` / `rewards_skip_card()` — 选择/跳过卡牌奖励
-- `map_choose_node(node_index)` — 选择地图节点
-- `rest_choose_option(option_index)` — 休息站选项
-- `shop_purchase(item_index)` — 商店购买
-- `event_choose_option(option_index)` — 事件选项
-- `deck_select_card(card_index)` / `deck_confirm_selection()` — 卡牌选择确认
-- `proceed_to_map()` — 返回地图
+| Action | 说明 |
+|--------|------|
+| `open_character_select` | 打开角色选择（单人模式） |
+| `open_multiplayer_host` | 创建多人房间 |
+| `select_character` | 选择角色 |
+| `embark` | 开始新游戏 |
+| `continue_run` | 继续存档 |
+| `abandon_run` | 放弃存档 |
+| `open_timeline` | 打开时间线 |
+| `set_ready` / `set_unready` | 多人准备状态 |
+| `get_lobby_status` | 查询房间信息 |
+| `confirm_modal` / `dismiss_modal` | 弹窗交互 |
+| `close_main_menu_submenu` | 关闭子菜单 |
+| `return_to_main_menu` | 返回主菜单 |
+
+### STS2MCP — 游戏内控制（端口 15526）
+
+用于游戏中操作（战斗、地图、事件等）。**Agent 必须使用此 API 进行游戏内操作。**
+
+| Action | 说明 |
+|--------|------|
+| `combat_play_card` | 出牌（需要 card_index，可能需要 target） |
+| `combat_end_turn` | 结束回合 |
+| `choose_map_node` | 选择地图节点 |
+| `choose_event_option` | 选择事件选项 |
+| `proceed` | 继续前进（奖励/事件后） |
+| `select_card` / `confirm_selection` | 卡牌选择 |
+| `skip_card_reward` | 跳过卡牌奖励 |
+| `cancel_selection` | 取消选择 |
+| `rewards_claim` | 领取奖励 |
+| `rest_choose_option` | 休息站选项 |
+| `shop_purchase` | 商店购买 |
+| `deck_select_card` / `deck_confirm_selection` | 卡组编辑 |
 
 ## 文件规则
 
@@ -188,7 +221,7 @@ powershell -ExecutionPolicy Bypass -File "tools\read_sts2_logs.ps1"
 .\install.bat
 ```
 
-自动安装 .NET 10 SDK、.NET 8 运行时、Godot、ILSpy、STS2MCP，配置 MCP 服务器。只需运行一次。
+自动安装 .NET 10 SDK、.NET 8 运行时、Godot、ILSpy、STS2MCP、STS2MenuControl，配置 MCP 服务器。只需运行一次。
 
 ### 日常开发
 
@@ -196,7 +229,15 @@ powershell -ExecutionPolicy Bypass -File "tools\read_sts2_logs.ps1"
 install-mod.bat
 ```
 
-重新构建 Mod DLL/PCK 并安装到游戏。可加参数：`install-mod.bat "游戏路径"`
+重新构建所有 Mod（脚手架 + STS2MenuControl）并安装到游戏。可加参数：`install-mod.bat "游戏路径"`
+
+### 卸载
+
+```powershell
+uninstall-mod.bat
+```
+
+从游戏目录移除脚手架 Mod、STS2MCP 和 STS2MenuControl。
 
 ### 辅助脚本
 
@@ -207,7 +248,6 @@ install-mod.bat
 | `tools/close_sts2.ps1` | 关闭游戏 |
 | `tools/wait_sts2.ps1` | 等待游戏启动（轮询检测） |
 | `tools/read_sts2_logs.ps1` | 查看日志 |
-| `uninstall-mod.bat` | 从游戏目录卸载 mod 和 STS2MCP |
 
 ## Mod 文件结构
 
@@ -217,7 +257,7 @@ install-mod.bat
 
 ### Mod 未加载
 - 检查 `godot.log` 中的 `ERROR` 和 `WARNING`
-- 确认 `你的Mod名.json` 中 `id` 字段与文件夹名、DLL文件名一致
+- 确认清单中的 `id` 与文件夹名、DLL文件名一致
 - 确认 `has_dll: true` 和 `has_pck: true` 已设置
 - 确认 `mod_manifest.json` 包含 `pck_name` 字段
 - 确认 DLL 和 PCK 文件都在游戏 `mods/` 目录的子文件夹下
