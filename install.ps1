@@ -107,33 +107,54 @@ $env:PATH = "$DotnetDir;$env:PATH"
 $dotnet10Installed = $false
 $dotnet10RuntimeInstalled = $false
 
-if (Test-Path (Join-Path $DotnetDir "dotnet.exe")) {
-    Write-Host "  - Checking installed .NET SDK versions..."
-    & "$DotnetDir\dotnet.exe" --list-sdks 2>$null | ForEach-Object {
-        Write-Host "    $_"
-        if ($_ -match "10\.0") { $dotnet10Installed = $true }
-    }
-    Write-Host "  - Checking installed .NET runtimes..."
-    & "$DotnetDir\dotnet.exe" --list-runtimes 2>$null | ForEach-Object {
-        if ($_ -match "10\.0" -and $_ -match "Microsoft.WindowsDesktopRuntime") {
-            $dotnet10RuntimeInstalled = $true
+if ((Test-Path (Join-Path $DotnetDir "dotnet.exe")) -and (Test-FileSize (Join-Path $DotnetDir "dotnet.exe") 100000)) {
+    $dotnetTest = & "$DotnetDir\dotnet.exe" --version 2>$null
+    if ($dotnetTest -match "10\.0") {
+        Write-Host "  - Checking installed .NET SDK versions..."
+        & "$DotnetDir\dotnet.exe" --list-sdks 2>$null | ForEach-Object {
+            Write-Host "    $_"
+            if ($_ -match "10\.0") { $dotnet10Installed = $true }
         }
+        Write-Host "  - Checking installed .NET runtimes..."
+        & "$DotnetDir\dotnet.exe" --list-runtimes 2>$null | ForEach-Object {
+            if ($_ -match "10\.0" -and $_ -match "Microsoft.WindowsDesktopRuntime") {
+                $dotnet10RuntimeInstalled = $true
+            }
+        }
+    } else {
+        Write-Host "  - dotnet.exe exists but not working, will reinstall"
     }
-} else {
-    Write-Host "  - .NET SDK not found, will install"
 }
 
 if (-not $dotnet10Installed) {
-    Write-Host "  - Installing .NET 10.0 SDK to $DotnetDir ..."
+    Write-Host "  - Installing .NET 10.0 SDK..."
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $installScript = Join-Path $env:TEMP "dotnet-install.ps1"
         Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installScript -UseBasicParsing
-        & $installScript -InstallDir $DotnetDir -Channel 10.0 -Version Latest
-        Remove-Item $installScript -Force -ErrorAction SilentlyContinue
+
+        $dotnetTempDir = Join-Path $env:TEMP "dotnet_temp_install"
+        if (Test-Path $dotnetTempDir) { Remove-Item $dotnetTempDir -Recurse -Force -ErrorAction SilentlyContinue }
+        & $installScript -InstallDir $dotnetTempDir -Channel 10.0 -Version Latest 2>$null
+
+        if (-not (Test-Path (Join-Path $dotnetTempDir "dotnet.exe"))) { throw "SDK download/extract failed" }
+
+        if (-not (Test-Path $DotnetDir)) {
+            New-Item -ItemType Directory -Path $DotnetDir -Force | Out-Null
+        } else {
+            foreach ($sub in @("sdk.old","shared.old","host.old","templates.old")) {
+                $p = Join-Path $DotnetDir $sub
+                if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
+            }
+        }
+
+        robocopy $dotnetTempDir $DotnetDir /E /NFL /NDL /NJH /NJS /NC /NS 2>$null
+
         $dotnet10Installed = & "$DotnetDir\dotnet.exe" --list-sdks 2>$null | Where-Object { $_ -match "10\.0" }
         if (-not $dotnet10Installed) { throw "SDK install verification failed" }
-        Write-OK "- .NET 10.0 installed"
+        Write-OK "- .NET 10.0 SDK installed"
+        Remove-Item $dotnetTempDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item $installScript -Force -ErrorAction SilentlyContinue
     } catch {
         Write-Err ".NET 10.0 SDK installation failed: $_"
         if ([Console]::IsOutputRedirected -eq $false) { pause }
@@ -144,16 +165,25 @@ if (-not $dotnet10Installed) {
 }
 
 if (-not $dotnet10RuntimeInstalled) {
-    Write-Host "  - Installing .NET 10.0 runtime to $DotnetDir ..."
+    Write-Host "  - Installing .NET 10.0 runtime..."
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $installScript = Join-Path $env:TEMP "dotnet-install.ps1"
         if (-not (Test-Path $installScript)) {
             Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installScript -UseBasicParsing
         }
-        & $installScript -InstallDir $DotnetDir -Channel 10.0 -Runtime dotnet
-        Remove-Item $installScript -Force -ErrorAction SilentlyContinue
-        Write-OK "- .NET 10.0 runtime installed"
+
+        $dotnetTempDir = Join-Path $env:TEMP "dotnet_temp_runtime"
+        if (Test-Path $dotnetTempDir) { Remove-Item $dotnetTempDir -Recurse -Force -ErrorAction SilentlyContinue }
+        & $installScript -InstallDir $dotnetTempDir -Channel 10.0 -Runtime dotnet 2>$null
+
+        if (Test-Path (Join-Path $dotnetTempDir "dotnet.exe")) {
+            robocopy $dotnetTempDir $DotnetDir /E /NFL /NDL /NJH /NJS /NC /NS 2>$null
+            Write-OK "- .NET 10.0 runtime installed"
+        } else {
+            Write-OK "- .NET 10.0 runtime (included in SDK)"
+        }
+        Remove-Item $dotnetTempDir -Recurse -Force -ErrorAction SilentlyContinue
     } catch {
         Write-Warn ".NET 10.0 runtime installation failed: $_"
     }
@@ -175,12 +205,18 @@ if (-not $dotnet8RuntimeInstalled) {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $installScript = Join-Path $env:TEMP "dotnet-install.ps1"
         if (-not (Test-Path $installScript)) {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installScript -UseBasicParsing
         }
-        & $installScript -InstallDir $DotnetDir -Channel 8.0 -Runtime dotnet
-        Remove-Item $installScript -Force -ErrorAction SilentlyContinue
+        $dotnetTempDir = Join-Path $env:TEMP "dotnet_temp_runtime8"
+        if (Test-Path $dotnetTempDir) { Remove-Item $dotnetTempDir -Recurse -Force -ErrorAction SilentlyContinue }
+        & $installScript -InstallDir $dotnetTempDir -Channel 8.0 -Runtime dotnet 2>$null
+        if (Test-Path (Join-Path $dotnetTempDir "dotnet.exe")) {
+            robocopy $dotnetTempDir $DotnetDir /E /NFL /NDL /NJH /NJS /NC /NS 2>$null
+        }
+        $dotnet8Installed = & "$DotnetDir\dotnet.exe" --list-runtimes 2>$null | Where-Object { $_ -match "8\.0" }
+        if (-not $dotnet8Installed) { throw "Runtime install verification failed" }
         Write-OK "- .NET 8.0 runtime installed"
+        Remove-Item $dotnetTempDir -Recurse -Force -ErrorAction SilentlyContinue
     } catch {
         Write-Warn ".NET 8.0 runtime installation failed: $_"
     }
@@ -282,24 +318,6 @@ if (Test-Path $csprojPath) {
     Write-OK "- csproj GameDir updated"
 } else {
     Write-Warn "- csproj not found at $csprojPath"
-}
-
-Write-Step 2 7 "Setting up game assembly references..."
-$sts2Dll = Join-Path $GameDir "data_sts2_windows_x86_64\sts2.dll"
-$refSts2Dll = Join-Path $RefDir "sts2.dll"
-if (-not (Test-Path $refSts2Dll)) {
-    if (-not (Test-Path $sts2Dll)) {
-        Write-Err "Game not found at $GameDir"
-        if ([Console]::IsOutputRedirected -eq $false) { pause }
-        exit 1
-    }
-    if (-not (Test-Path $RefDir)) { New-Item -ItemType Directory -Path $RefDir -Force | Out-Null }
-    Copy-Item (Join-Path $GameDir "data_sts2_windows_x86_64\sts2.dll") $RefDir -Force
-    Copy-Item (Join-Path $GameDir "data_sts2_windows_x86_64\0Harmony.dll") $RefDir -Force -ErrorAction SilentlyContinue
-    Copy-Item (Join-Path $GameDir "data_sts2_windows_x86_64\GodotSharp.dll") $RefDir -Force - ErrorAction SilentlyContinue
-    Write-OK "- Game references copied"
-} else {
-    Write-OK "- Game references already exist, skipping"
 }
 
 Write-Step 2 7 "Setting up game assembly references..."
@@ -506,6 +524,19 @@ Pop-Location
 Write-OK "Done"
 
 Write-Step 5.5 7 "Setting up STS2MenuControl..."
+$STS2MenuControlRepo = "https://github.com/L4ntern0/STS2-MenuControl.git"
+if (-not (Test-Path (Join-Path $MenuControlDir "STS2MenuControl.csproj"))) {
+    Write-Host "  - Cloning STS2MenuControl from GitHub..."
+    if (Test-Path $MenuControlDir) { Remove-Item $MenuControlDir -Recurse -Force }
+    & git clone --depth 1 $STS2MenuControlRepo $MenuControlDir 2>$null
+    if (-not (Test-Path (Join-Path $MenuControlDir "STS2MenuControl.csproj"))) {
+        Write-Warn "Failed to clone STS2MenuControl"
+    } else {
+        Write-OK "- STS2MenuControl cloned"
+    }
+} else {
+    Write-OK "- STS2MenuControl source exists"
+}
 Write-Host "  - Building STS2MenuControl DLL..."
 $menuCtrlDll = Join-Path $MenuControlDir "bin\Release\net9.0\STS2MenuControl.dll"
 if (-not (Test-Path $menuCtrlDll)) {

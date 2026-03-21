@@ -37,11 +37,7 @@ SlaytheSpire2ModVibeCoding/
 │   ├── Sts2ModScaffold.csproj       # .NET 10 project - DO NOT modify
 │   └── com.vibecoding.sts2mod.json  # Mod manifest
 ├── tools/
-│   ├── STS2MenuControl/             # Main menu control Mod (auto-installed)
-│   │   ├── MenuControlMod.cs        # HTTP server (port 8081)
-│   │   ├── MenuActionService.cs     # Menu actions (singleplayer/multiplayer)
-│   │   ├── MenuStateService.cs      # State reader
-│   │   └── STS2MenuControl.csproj
+│   ├── STS2MenuControl/             # Main menu control Mod (cloned from GitHub at install)
 │   ├── STS2Mcp/                     # STS2MCP game control Mod (auto-installed)
 │   ├── pck_builder/                 # PCK builder script
 │   ├── dotnet/                      # Isolated .NET SDK/runtime
@@ -81,6 +77,8 @@ SlaytheSpire2ModVibeCoding/
 | **STS2MenuControl** | 8081 | Main menu control (new game, character select, multiplayer, timeline, etc.) |
 
 ### STS2MenuControl API
+
+> Repo: [https://github.com/L4ntern0/STS2-MenuControl](https://github.com/L4ntern0/STS2-MenuControl)
 
 HTTP API on `localhost:8081` for controlling the main menu:
 

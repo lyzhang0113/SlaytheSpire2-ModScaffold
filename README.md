@@ -38,11 +38,7 @@ SlaytheSpire2ModVibeCoding/
 │   ├── Sts2ModScaffold.csproj       # .NET 10 项目 — 禁止修改
 │   └── com.vibecoding.sts2mod.json  # Mod 清单
 ├── tools/
-│   ├── STS2MenuControl/             # 主菜单控制 Mod（自动安装）
-│   │   ├── MenuControlMod.cs        # HTTP 服务器（端口 8081）
-│   │   ├── MenuActionService.cs     # 菜单操作（单人/多人）
-│   │   ├── MenuStateService.cs      # 状态读取
-│   │   └── STS2MenuControl.csproj
+│   ├── STS2MenuControl/             # 主菜单控制 Mod（install 时从 GitHub 克隆）
 │   ├── STS2Mcp/                     # STS2MCP 游戏控制 Mod（自动安装）
 │   ├── pck_builder/                 # PCK 构建脚本
 │   ├── dotnet/                      # 隔离的 .NET SDK/运行时
@@ -82,6 +78,8 @@ SlaytheSpire2ModVibeCoding/
 | **STS2MenuControl** | 8081 | 主菜单控制（新游戏、角色选择、多人模式、时间线等） |
 
 ### STS2MenuControl API
+
+> 独立仓库：[https://github.com/L4ntern0/STS2-MenuControl](https://github.com/L4ntern0/STS2-MenuControl)
 
 HTTP API 在 `localhost:8081` 上控制主菜单（补充 STS2MCP 的功能）：
 

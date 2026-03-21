@@ -168,6 +168,8 @@ powershell -ExecutionPolicy Bypass -File "tools\read_sts2_logs.ps1"
 
 ### STS2MenuControl — 主菜单控制（端口 8081）
 
+> 独立仓库：https://github.com/L4ntern0/STS2-MenuControl（install 时从 GitHub 克隆）
+
 用于在主菜单中操作（角色选择、开始游戏、多人模式等）。**Agent 必须使用此 API 进行主菜单操作。**
 
 | Action | 说明 |
