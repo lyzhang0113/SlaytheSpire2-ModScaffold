@@ -50,6 +50,7 @@ $IlspyDir = Join-Path $ToolsDir "ilspy"
 $IlspyMcpDir = Join-Path $ToolsDir "ILSpy-Mcp"
 $Sts2McpDir = Join-Path $ToolsDir "STS2MCP"
 $Sts2McpPythonDir = Join-Path $Sts2McpDir "mcp"
+$MenuControlDir = Join-Path $ToolsDir "STS2MenuControl"
 $PckBuilderDir = Join-Path $ToolsDir "pck_builder"
 $UvDir = Join-Path $ToolsDir "uv"
 $UvExe = Join-Path $UvDir "uv.exe"
@@ -502,6 +503,39 @@ if ($LASTEXITCODE -ne 0) {
     Write-OK "- STS2MCP Python MCP Server verified"
 }
 Pop-Location
+Write-OK "Done"
+
+Write-Step 5.5 7 "Setting up STS2MenuControl..."
+Write-Host "  - Building STS2MenuControl DLL..."
+$menuCtrlDll = Join-Path $MenuControlDir "bin\Release\net9.0\STS2MenuControl.dll"
+if (-not (Test-Path $menuCtrlDll)) {
+    & "$DotnetDir\dotnet.exe" build (Join-Path $MenuControlDir "STS2MenuControl.csproj") -c Release -p:STS2GameDir=$GameDir --verbosity quiet 2>$null
+    if (-not (Test-Path $menuCtrlDll)) {
+        $menuCtrlDll = Get-ChildItem -Path (Join-Path $MenuControlDir "bin") -Recurse -Filter "STS2MenuControl.dll" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+    }
+}
+if ((Test-Path $menuCtrlDll) -and (Test-FileSize $menuCtrlDll 1000)) {
+    Write-OK "- STS2MenuControl DLL built"
+} else {
+    Write-Warn "STS2MenuControl DLL build may have failed"
+}
+$menuCtrlJson = Join-Path $MenuControlDir "mod_manifest.json"
+$gameModsDir = Join-Path $GameDir "mods"
+if (Test-Path $menuCtrlDll) {
+    if (-not (Test-Path (Join-Path $gameModsDir "STS2MenuControl.dll"))) {
+        if (-not (Test-Path $gameModsDir)) { New-Item -ItemType Directory -Path $gameModsDir -Force | Out-Null }
+        Copy-Item $menuCtrlDll $gameModsDir -Force
+        Write-OK "- STS2MenuControl DLL installed to game"
+    } else {
+        Write-OK "- STS2MenuControl DLL already in game mods folder"
+    }
+    if ((Test-Path $menuCtrlJson) -and (-not (Test-Path (Join-Path $gameModsDir "STS2MenuControl.json")))) {
+        Copy-Item $menuCtrlJson (Join-Path $gameModsDir "STS2MenuControl.json") -Force
+        Write-OK "- STS2MenuControl manifest installed to game"
+    }
+} else {
+    Write-Warn "STS2MenuControl DLL not built, skipping game installation"
+}
 Write-OK "Done"
 
 Write-Step 6 7 "Configuring MCP servers and opencode.jsonc..."

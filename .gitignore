@@ -29,11 +29,15 @@ references/
 .env
 opencode.jsonc
 
-# Tool downloads (keep scripts and pck_builder only)
+# Tool downloads (keep scripts, pck_builder, and STS2MenuControl source)
 /tools/*
 !/tools/*.ps1
 !/tools/pck_builder/
 !/tools/pck_builder/**
+!/tools/STS2MenuControl/
+!/tools/STS2MenuControl/*.cs
+!/tools/STS2MenuControl/*.csproj
+!/tools/STS2MenuControl/*.json
 
 # Cloned repositories
 /Modding-Tutorial/

@@ -9,6 +9,7 @@ This project uses the following open-source projects:
 - **[STS2MCP](https://github.com/Gennadiyev/STS2MCP)** - MCP server for programmatic game control (play cards, read state, navigate menus)
 - **[ILSpy-Mcp](https://github.com/maces/ILSpy-Mcp)** - MCP server for .NET assembly decompilation and code exploration
 - **[Modding-Tutorial](https://github.com/fresh-milkshake/Modding-Tutorial)** - Reference documentation and examples for Slay the Spire 2 mod development
+- **[STS2-Agent](https://github.com/CharTyr/STS2-Agent)** - Reference for main menu API (character select, timeline, embark)
 
 ## Quick Start
 
@@ -77,6 +78,7 @@ Two MCP servers are pre-configured in `opencode.jsonc`:
 |--------|---------|
 | **ILSpy MCP** | Decompile `sts2.dll` to explore game internals and verify hook signatures |
 | **STS2MCP** | Control the game programmatically (play cards, read state, navigate menus) |
+| **STS2MenuControl** | Main menu control (start new game, select character, timeline, abandon run) |
 
 ### ILSpy MCP - Code Decompilation
 
@@ -101,6 +103,29 @@ combat_end_turn()             # End turn
 rewards_claim(0)              # Claim reward
 map_choose_node(0)            # Choose map node
 ```
+
+### STS2MenuControl - Main Menu Control
+
+HTTP API on `localhost:8081` for controlling the main menu (complements STS2MCP):
+
+```
+GET  /api/v1/menu                    # Get current menu state
+POST /api/v1/menu                    # Execute menu action
+```
+
+| Action | Description |
+|--------|-------------|
+| `open_character_select` | Open character selection screen |
+| `select_character` (option_index) | Select a character |
+| `embark` | Start a new game |
+| `continue_run` | Continue existing save |
+| `abandon_run` | Abandon current save |
+| `open_timeline` | Open timeline screen |
+| `choose_timeline_epoch` (option_index) | Select a timeline epoch |
+| `confirm_timeline_overlay` | Confirm timeline dialog |
+| `close_main_menu_submenu` | Close current submenu |
+| `return_to_main_menu` | Return to main menu (from game over) |
+| `confirm_modal` / `dismiss_modal` | Interact with modal dialogs |
 
 ## Vibe Coding with AI
 

@@ -45,8 +45,10 @@ if not defined MOD_NAME (
 set "MOD_SUBFOLDER=!GAME_DIR!\mods\!MOD_NAME!"
 set "MCP_DLL=!GAME_DIR!\mods\STS2_MCP.dll"
 set "MCP_JSON=!GAME_DIR!\mods\STS2_MCP.json"
+set "MC_DLL=!GAME_DIR!\mods\STS2MenuControl.dll"
+set "MC_JSON=!GAME_DIR!\mods\STS2MenuControl.json"
 
-echo [1/2] Removing mod [!MOD_NAME!]...
+echo [1/3] Removing mod [!MOD_NAME!]...
 if exist "!MOD_SUBFOLDER!" (
     rmdir /S /Q "!MOD_SUBFOLDER!"
     echo   - Removed !MOD_SUBFOLDER!
@@ -54,7 +56,7 @@ if exist "!MOD_SUBFOLDER!" (
     echo   - Not found: !MOD_SUBFOLDER! (already removed)
 )
 
-echo [2/2] Removing STS2MCP files...
+echo [2/3] Removing STS2MCP files...
 set "MCP_REMOVED=0"
 if exist "!MCP_DLL!" (
     del /Q "!MCP_DLL!"
@@ -70,9 +72,25 @@ if "!MCP_REMOVED!"=="0" (
     echo   - Not found (already removed)
 )
 
+echo [3/3] Removing STS2MenuControl files...
+set "MC_REMOVED=0"
+if exist "!MC_DLL!" (
+    del /Q "!MC_DLL!"
+    echo   - Removed STS2MenuControl.dll
+    set "MC_REMOVED=1"
+)
+if exist "!MC_JSON!" (
+    del /Q "!MC_JSON!"
+    echo   - Removed STS2MenuControl.json
+    set "MC_REMOVED=1"
+)
+if "!MC_REMOVED!"=="0" (
+    echo   - Not found (already removed)
+)
+
 echo.
 echo ========================================
-echo Done! Mod and STS2MCP files removed.
+echo Done! Mod, STS2MCP, and STS2MenuControl removed.
 echo ========================================
 echo.
 pause

@@ -9,6 +9,7 @@
 - **[STS2MCP](https://github.com/Gennadiyev/STS2MCP)** - MCP 服务器，用于程序化游戏控制（出牌、读取状态、导航菜单）
 - **[ILSpy-Mcp](https://github.com/maces/ILSpy-Mcp)** - MCP 服务器，用于 .NET 程序集反编译和代码探索
 - **[Modding-Tutorial](https://github.com/fresh-milkshake/Modding-Tutorial)** - 杀戮尖塔 2 Mod 开发参考文档和示例
+- **[STS2-Agent](https://github.com/CharTyr/STS2-Agent)** - 主菜单 API 参考（角色选择、时间线、开始游戏）
 
 ## 快速开始
 
@@ -77,6 +78,7 @@ SlaytheSpire2ModVibeCoding/
 |--------|------|
 | **ILSpy MCP** | 反编译 `sts2.dll` 探索游戏内部结构、验证 Hook 签名 |
 | **STS2MCP** | 程序化控制游戏（出牌、读取状态、导航菜单） |
+| **STS2MenuControl** | 主菜单控制（开始新游戏、选择角色、时间线、放弃存档） |
 
 ### ILSpy MCP - 代码反编译
 
@@ -101,6 +103,29 @@ combat_end_turn()             # 结束回合
 rewards_claim(0)              # 领取奖励
 map_choose_node(0)            # 选择地图节点
 ```
+
+### STS2MenuControl - 主菜单控制
+
+HTTP API 在 `localhost:8081` 上控制主菜单（补充 STS2MCP 的功能）：
+
+```
+GET  /api/v1/menu                    # 获取当前菜单状态
+POST /api/v1/menu                    # 执行菜单操作
+```
+
+| 操作 | 说明 |
+|------|------|
+| `open_character_select` | 打开角色选择界面 |
+| `select_character` (option_index) | 选择角色 |
+| `embark` | 开始新游戏 |
+| `continue_run` | 继续存档 |
+| `abandon_run` | 放弃存档 |
+| `open_timeline` | 打开时间线 |
+| `choose_timeline_epoch` (option_index) | 选择时间线时代 |
+| `confirm_timeline_overlay` | 确认时间线弹窗 |
+| `close_main_menu_submenu` | 关闭子菜单 |
+| `return_to_main_menu` | 返回主菜单（从 Game Over） |
+| `confirm_modal` / `dismiss_modal` | 弹窗交互 |
 
 ## Vibe Coding with AI
 
