@@ -193,6 +193,8 @@ This updates:
 
 Everything else (.NET, Godot, uv, ILSpy) is installed automatically.
 
+> **Note**: This scaffold has only been tested on Windows. Other platforms (macOS, Linux) have not been tested.
+
 ## Logging
 
 ```csharp

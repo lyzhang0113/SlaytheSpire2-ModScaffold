@@ -309,6 +309,8 @@ mods/YourModName/
 
 其他所有依赖（.NET、Godot、uv、ILSpy）都会自动安装。
 
+> **注意**：本脚手架仅在 Windows 平台测试过，其他平台（macOS、Linux）未进行测试。
+
 ## 日志
 
 ```csharp
