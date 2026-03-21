@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Timeline;
 using MegaCrit.Sts2.Core.Nodes.Screens.Timeline.UnlockScreens;
 using MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 
 namespace STS2MenuControl;
 
@@ -250,8 +251,7 @@ internal static class MenuStateService
 
     internal static void ClickNode(Node node)
     {
-        if (node is BaseButton bb) { bb.EmitSignal(BaseButton.SignalName.Pressed); }
-        else { node.Call("force_click"); }
+        node.Call("ForceClick");
     }
 
     private static List<T> FindDescendants<T>(Node root) where T : Node
