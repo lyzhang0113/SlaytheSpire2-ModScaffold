@@ -103,7 +103,7 @@ internal static class MenuActionService
                 new() { ["action"] = "continue_run", ["screen"] = MenuStateService.ResolveScreen(screen) });
 
         var btn = mainMenu.GetNodeOrNull("MainMenuTextButtons/ContinueButton");
-        if (btn != null) MenuStateService.ClickNode(btn);
+        if (btn != null) mainMenu.Call("OnContinueButtonPressed", btn);
         return Success("continue_run");
     }
 
@@ -115,7 +115,7 @@ internal static class MenuActionService
                 new() { ["action"] = "abandon_run", ["screen"] = MenuStateService.ResolveScreen(screen) });
 
         var btn = mainMenu.GetNodeOrNull("MainMenuTextButtons/AbandonRunButton");
-        if (btn != null) MenuStateService.ClickNode(btn);
+        if (btn != null) mainMenu.Call("OnAbandonRunButtonPressed", btn);
         return Success("abandon_run");
     }
 
@@ -207,8 +207,12 @@ internal static class MenuActionService
             throw new MenuActionException(409, "Modal is not a Node",
                 new() { ["action"] = "confirm_modal" });
 
-        var confirmBtn = modalNode.GetNodeOrNull("VerticalPopup/YesButton")
-            ?? modalNode.GetNodeOrNull("ConfirmButton")
+        var yesBtn = modalNode.GetNodeOrNull("VerticalPopup/YesButton")
+            ?? modalNode.GetNodeOrNull("%YesButton");
+
+        if (yesBtn != null) { yesBtn.Call("ForceClick"); return Success("confirm_modal"); }
+
+        var confirmBtn = modalNode.GetNodeOrNull("ConfirmButton")
             ?? modalNode.GetNodeOrNull("%ConfirmButton");
 
         if (confirmBtn != null) { MenuStateService.ClickNode(confirmBtn); return Success("confirm_modal"); }
@@ -229,14 +233,18 @@ internal static class MenuActionService
             throw new MenuActionException(409, "Modal is not a Node",
                 new() { ["action"] = "dismiss_modal" });
 
-        var cancelBtn = modalNode.GetNodeOrNull("VerticalPopup/NoButton")
-            ?? modalNode.GetNodeOrNull("CancelButton")
+        var noBtn = modalNode.GetNodeOrNull("VerticalPopup/NoButton")
+            ?? modalNode.GetNodeOrNull("%NoButton");
+
+        if (noBtn != null) { noBtn.Call("ForceClick"); return Success("dismiss_modal"); }
+
+        var cancelBtn = modalNode.GetNodeOrNull("CancelButton")
             ?? modalNode.GetNodeOrNull("%CancelButton");
 
         if (cancelBtn != null) { MenuStateService.ClickNode(cancelBtn); return Success("dismiss_modal"); }
 
-        throw new MenuActionException(409, "No dismiss button on modal",
-            new() { ["action"] = "dismiss_modal" });
+        NModalContainer.Instance?.Clear();
+        return Success("dismiss_modal");
     }
 
     private static NMainMenuSubmenuStack? GetSubmenuStack(Node? node)
