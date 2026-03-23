@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$scriptRoot = $PSScriptRoot
+$scriptRoot = Get-Location
 $srcDir = Join-Path $scriptRoot "src"
 
 if (-not (Test-Path $srcDir)) {
