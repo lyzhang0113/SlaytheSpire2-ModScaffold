@@ -4,8 +4,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$scriptRoot = Get-Location
-$srcDir = Join-Path $scriptRoot "src"
+$workingDir = Get-Location
+$srcDir = Join-Path $workingDir "src"
 
 if (-not (Test-Path $srcDir)) {
     Write-Host "ERROR: src directory not found" -ForegroundColor Red
